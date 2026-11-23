@@ -140,8 +140,9 @@ MCR-ALS_Orange/
 
 If you use these widgets, please cite:
 
-Suarez Orduz, H. A. MCR-ALS widgets for Orange. A paper describing the ID21 software
-environment is in preparation.
+Suarez Orduz, H. A. (2026). MCR-ALS widgets for Orange. https://github.com/hualsuor/mcr-als-orange
+
+A paper describing the ID21 software environment is in preparation.
 
 ## License
 
