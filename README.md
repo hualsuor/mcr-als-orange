@@ -10,6 +10,9 @@ concentration profiles **C**, so that D = C·Sᵀ + E.
 The package also includes an installer for the Python environment, an example workflow, and
 a synthetic Cu K-edge dataset to test the widgets.
 
+For the history of this tool and the reasons behind each design choice, see
+[docs/DESIGN_NOTES.md](docs/DESIGN_NOTES.md).
+
 ## The two widgets
 
 Both widgets:
@@ -125,9 +128,20 @@ MCR-ALS_Orange/
 │   ├── data/                         Synthetic Cu K-edge data (.tab)
 │   ├── scripts/                      Scripts that generate the data and figure
 │   └── figures/                      Real vs. distorted references
+├── docs/
+│   └── DESIGN_NOTES.md               History and design decisions
+├── .gitignore
 ├── LICENSE
-└── README.md
+├── README.md
+└── requirements.txt                  Exact package versions
 ```
+
+## Citation
+
+If you use these widgets, please cite:
+
+Suarez Orduz, H. A. MCR-ALS widgets for Orange. A paper describing the ID21 software
+environment is in preparation.
 
 ## License
 
