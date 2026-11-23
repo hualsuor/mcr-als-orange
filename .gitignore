@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+.ipynb_checkpoints/
+.pytest_cache/
+.venv/
+venv/
+env/
+.env
+
+# Files created by the installer next to itself
+installer/install_log.txt
+installer/pip_constraints.txt
+installer/spec_constraints.txt
+installer/miniconda_installer.exe
+
+# Editors and OS
+.vscode/
+.idea/
+.spyproject/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Office lock files (OneDrive / Word / Excel)
+~$*
