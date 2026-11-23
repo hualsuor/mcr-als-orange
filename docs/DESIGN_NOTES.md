@@ -1,8 +1,8 @@
 # Design notes
 
-This document explains where the MCR-ALS widgets come from, which problems we found on the
-way, and why the code works the way it does. It is meant for users who want to understand the
-results, and for anyone who wants to change the code.
+This document explains where the MCR-ALS widgets come from, which problems were found during
+their development, and why the code works the way it does. It is meant for users who want to
+understand their results, and for anyone who wants to change the code.
 
 ## Background
 
@@ -27,90 +27,206 @@ colleagues.
 
 ## Problems found
 
-### 1. Results depended on the order of the rows
+### 1. The results depended on the order of the spectra
 
-With the same spectra loaded in a different order, the earlier widgets gave different pure
-spectra and concentrations. For a set of independent measurement points, the row order has no
-physical meaning, so the result should not depend on it.
+At ID21, spectra are often collected on several points of a map. These points are
+independent: point 5 does not come "after" point 4 in any physical sense. However, when the
+same spectra were loaded in a different order, the earlier widgets gave different results.
+The pure spectra changed, and so did the proportion of each species on each point. This
+should not happen: the chemistry of a sample does not depend on the order of the rows in a
+file.
 
-### 2. Unimodality was on by default
+### 2. A hidden constraint was active by default
 
-The root cause of problem 1 was a default of SpectroChemPy: in SpectroChemPy 0.6.9, the
-version used here, `MCRALS` sets `unimodConc="all"`. This forces every concentration profile to rise and fall
-only once along the row axis. That is a sensible default for kinetics or chromatography, where
-the rows follow time. For ID21 data, where spectra usually come from independent points of
-interest, it imposes a shape that does not exist, and the shape changes when the rows are
-reordered. Users who call the library with its default settings do not see this.
+The cause was a default setting of SpectroChemPy, the library that performs the MCR-ALS
+calculation. In SpectroChemPy 0.6.9, the version used here, the concentration of every
+component is forced by default to rise and then fall only once along the list of spectra.
+This makes sense for a kinetic experiment or a chromatogram, where the spectra follow time and
+a species appears, reaches a maximum and disappears. It makes no sense for a set of points on a
+map. For example, in a map of copper corrosion products, Cu(II) can be high on point 3, low on
+point 4 and high again on point 5. The constraint does not allow this, so the calculation
+distorts the result to fit it. When the order of the points changes, the distortion changes
+too. Users who keep the default settings of the library are not aware of this constraint.
 
-### 3. EFA assumes an ordered, evolving series
+### 3. The starting guess also assumed an evolution
 
-Evolving factor analysis (EFA) finds where each component appears and disappears along the
-rows. This only makes sense when the rows follow an evolution (time, temperature, depth). On a
-table of independent points in arbitrary order, EFA has nothing to follow, and the initial
-guess it produces depends on the row order.
+MCR-ALS needs a first guess to start the calculation. One common way to build it is evolving
+factor analysis (EFA), which looks at where each species appears and disappears along the
+series of spectra. This works well for a titration, a temperature ramp or a depth profile. On
+points taken from a map, in the order in which they happened to be saved, there is no
+evolution to follow. The first guess then depends on the order of the file, and so does the
+final result.
 
-### 4. Metadata dependence
+### 4. The widgets depended on the metadata
 
-Earlier versions used metadata columns inside the widget to keep track of the rows. This tied
-the widgets to a specific table layout. The current version removes this dependency (see the
-first design decision below).
+Earlier versions used metadata columns, such as sample names, inside the widget to keep track
+of the spectra. This tied the widgets to one specific table layout. A table prepared in a
+slightly different way could not be used directly.
 
 ## Design decisions and why
 
-| Decision | Why |
-|---|---|
-| **Traceability by row index only.** The widgets read only the spectral matrix. Each output row of concentrations carries an `Index` meta column with the original input position. | The widgets work with any table, whatever metadata it has. Users join the results back to their metadata with Orange's **Merge Data** widget, using the row index. |
-| **Unimodality off by default** (`UNIMODALITY = False`). The user can switch it on. | It is only valid for a real evolving series (problem 2). When it is on, the widget also orders the rows by a principal component, so the axis of the constraint is explicit and reproducible. |
-| **Rows ordered by a principal component before EFA, then returned to the original order.** The EFA widget sorts the spectra by their score on a user-chosen component (`PC_INDEX`, `PC_ASCENDING`), runs EFA and MCR-ALS on that order, and then puts the concentrations back in the input order. | This gives EFA an ordered axis to work on (problem 3), defined from the data and not from the order of the file. The output stays in the input order, so the Merge Data step still works. |
-| **SVD report.** Both widgets print the singular values of the uncentered data and their cumulative variance. | The number of components is the most important choice in MCR-ALS. The SVD of the uncentered matrix is the one that matches the bilinear model D = C·Sᵀ + E. |
-| **Reference testing widget**, with a verdict per component: `GOOD FIT` (\|r\| ≥ 0.98), `CHECK` (\|r\| ≥ 0.90) or `POOR FIT`. The user chooses some input rows as the initial spectra; after the fit, the widget computes the correlation r between each starting spectrum and its resolved spectrum. | Users often have candidate references and want to know whether they explain the data. If the fit moves far away from a reference, that reference is probably not the right compound. The verdict makes this visible instead of hiding it in the plots. |
-| **SIMPLISMA replaced by reference testing.** | Reference testing covers the common case where the user already has candidate spectra, and it makes the choice of starting spectra explicit. |
-| **Extra warnings.** Both widgets report LOF and R², flag a component that collapses to a constant, a component almost identical to one experimental spectrum (\|r\| > 0.999), and a component that is close to zero in most samples. | These are the usual signs that the number of components is too high or that the solution is degenerate. |
-| **Two outputs: `out_data` and `out_object`.** `out_data` holds the concentration profiles, one row per input spectrum (raw values and relative fractions in %). `out_object` holds the resolved pure spectra as an Orange table; the reference testing widget adds the starting spectra, tagged by `Source` (Guess or Optimized). | Concentrations are the result most users merge with metadata, so they go on the main data output. Spectra go on the second output and can be plotted directly with the Spectra widget. |
-| **Installer with frozen versions.** The installer creates a conda environment with fixed versions (Python 3.10.14, Orange 3.36.2, numpy 1.26.4, scikit-learn 1.3.2, PyQt 5.15.10, SpectroChemPy 0.6.9). It freezes what conda resolved before running pip, so pip cannot change those packages. | SpectroChemPy is installed with pip on top of a conda environment. Without the freeze, pip can silently upgrade numpy or scipy and break Orange. |
-| **setuptools < 81.** | Newer setuptools versions no longer include `pkg_resources`, which this setup still needs at startup. |
-| **Orange-Spectroscopy optional.** The installer tries to install it as a last step. If that fails, the installation is kept and the user is told to install it from Orange's Add-ons menu. | The MCR-ALS widgets do not import it. Only the example workflow needs it (Spectra and Normalization widgets). Earlier installers that included it ran into dependency conflicts. |
+### The spectra are tracked by their position only
+
+The widgets now read only the spectra, not the metadata. Each spectrum keeps its original
+position in the input table, and this position is written next to the results. Users can then
+join the results back to their own information (sample name, point of interest, tags from the
+acquisition) with the standard Merge Data widget of Orange. In this way, the widgets work with
+any table, and no information is lost.
+
+### The hidden constraint is switched off by default
+
+The constraint described in problem 2 is now off unless the user switches it on. It should
+only be used when the spectra really follow an evolution, for example a series collected
+during heating. When it is switched on, the widget first sorts the spectra in a reproducible
+way (see the next point), so that the result does not depend on the order of the file.
+
+### The spectra are sorted before the first guess, then put back in order
+
+To give EFA a series to follow, the widget sorts the spectra along their main source of
+variation, found by principal component analysis (PCA). In a map that contains metallic copper
+and copper oxides, for example, this can sort the spectra from the most metallic to the most
+oxidized. EFA and MCR-ALS are run on this sorted series. At the end, the results are put back
+in the original order of the input table, so the link with the metadata is kept.
+
+### A reference testing widget
+
+Users often have candidate reference spectra, for example metallic copper, Cu2O and CuO from
+the ID21 database, and want to know whether these compounds are present in their samples. The
+reference testing widget starts the calculation from the references chosen by the user. The
+calculation then refines these spectra to fit the data. At the end, each refined spectrum is
+compared with the reference it started from. If the two are still very similar, the widget
+reports GOOD FIT. If they are less similar, it reports CHECK, and if the calculation moved far
+away from the reference, it reports POOR FIT. A poor fit suggests that the true compound in the
+sample is different, for example a Cu(II) species other than the oxide. This widget replaced
+an earlier automatic method (SIMPLISMA), because it makes the choice of the starting spectra
+explicit and answers a question that users ask often.
+
+### Help to choose the number of components
+
+The number of components (species) is the most important choice in MCR-ALS. Both widgets print
+a table that shows how much of the signal is explained by one, two, three or more components.
+When the curve stops improving, adding more components usually only describes noise.
+
+### Warnings when the result is not reliable
+
+Both widgets report how well the result reproduces the measured spectra. They also give a
+warning when a component becomes flat, when a component is almost identical to one single
+measured spectrum, or when a component is almost absent from most of the points. These are
+the usual signs that too many components were requested.
+
+### Two separate outputs
+
+The first output contains the proportions of each component, one row per measured spectrum,
+as raw values and as percentages. This is the result that most users join with their metadata
+and plot on a map or per sample. The second output contains the recovered spectra of the pure
+components. It can be connected directly to the Spectra widget and compared with known
+references. In the reference testing widget, this output also contains the starting
+references, so the user can see how much each one changed.
+
+### A reliable installation
+
+The widgets depend on several libraries that must work together: Orange, SpectroChemPy and the
+usual scientific Python packages. With uncontrolled versions, installing one library can
+silently update another one and break Orange. For this reason, the installer creates a
+separate environment with fixed versions, and it prevents later steps from changing the
+versions already installed. An older component of the Python installation tools is also kept,
+because the setup still needs it to start. Finally, the Orange-Spectroscopy add-on is
+installed as an optional last step. The MCR-ALS widgets do not need it; only the example
+workflow does, for spectra display and normalization. If this step fails, the rest of the
+installation is kept and the user is told how to install the add-on from Orange.
 
 ## Validation
 
-The package includes a synthetic Cu K-edge dataset, built from three real reference spectra:
-Cu(0), Cu2O (Cu(I)) and CuO (Cu(II)).
+A synthetic copper dataset is included to test the widgets on a case where the right answer
+is known. It is built from three real Cu K-edge reference spectra: metallic copper (Cu(0)),
+Cu2O (Cu(I)) and CuO (Cu(II)).
 
-- **Mixtures.** 1000 spectra, each one f1·ref1 + f2·ref2 + f3·ref3 plus white Gaussian noise
-  with σ = 0.025. The fractions come from a Dirichlet(1,1,1) distribution, so they are uniform
-  on the simplex and sum to 1. The random seed is fixed (0), so the dataset can be regenerated
-  exactly with `example_cu/scripts/simulate_cu_mixtures.py`. Because the true fractions and
-  spectra are known, the output of both widgets can be compared with the truth.
-- **Distorted references.** To test the reference testing widget, we made "wrong" references
-  that look like a different compound with the same oxidation state. They change shape, not
-  only position: an edge shift of 2 eV, a 6 % stretch of the post-edge energy scale, a 30 %
-  increase of the post-edge oscillation amplitude, and a weak added oscillation (period 15 eV,
-  amplitude 0.05). All changes are smooth and start after the edge, so the pre-edge is not
-  modified. A pure energy shift would be too easy a test, because it is a common calibration
-  problem and not a different compound. The script is
+- **Mixtures.** The file contains the three references and 1000 mixture spectra. Each mixture
+  is a combination of the three references in random proportions, with added random noise,
+  similar to a map where each point contains a different amount of each copper species. The
+  true composition of each mixture is written in its name, for example "Mix 1: Cu(0) 40%,
+  Cu2O (Cu(I)) 59%, CuO(II) 1%". The proportions found by the widgets can therefore be
+  compared directly with the true ones. The dataset can be regenerated exactly with
+  `example_cu/scripts/simulate_cu_mixtures.py`.
+- **Distorted references.** To test the reference testing widget, a set of "wrong" references
+  was made. They look like a different compound with the same oxidation state: the edge is
+  shifted, and the oscillations after the edge are stretched, stronger and slightly modified.
+  The region before the edge is not changed. A simple energy shift was not enough, because it
+  looks more like a calibration problem than a different compound. The script is
   `example_cu/scripts/make_distorted_references.py`.
 
-The expected behaviour is that reference testing gives `GOOD FIT` with the true references and
-`CHECK` or `POOR FIT` with the distorted ones. The results of both widgets on this dataset can
-be reproduced with the example workflow, `workflow/mcrals_cu_example.ows`.
+With the true references, the reference testing widget is expected to report GOOD FIT. With
+the distorted ones, it is expected to report CHECK or POOR FIT. The results of both widgets on
+this dataset can be reproduced with the example workflow, `workflow/mcrals_cu_example.ows`.
+
+## Advantages
+
+- **Many spectra at once.** Hundreds or thousands of spectra, for example all the points of a
+  XANES map, can be analysed together in a short time.
+- **No references needed in advance.** MCR-ALS recovers the spectra of the pure components and
+  their proportion on each point, even when no reference spectra are available.
+- **A link with linear combination fitting.** The recovered spectra can be used as references
+  in a linear combination fit (LCF). The results can then be compared with an LCF made with
+  references from a database, which helps to identify the species present.
+- **Inside Orange.** No programming is needed. The widgets run inside the workflows that ID21
+  users already use, next to normalization, PCA and clustering.
+- **Not only XANES.** The method can be applied to any set of spectra or signals that are
+  mixtures of several contributions, for example IR, Raman, UV-Vis or XRF data.
 
 ## Limitations
 
-- **The PCA order is a pseudo-evolution.** Sorting the spectra by a principal component gives
-  EFA an ordered axis, which is useful to build an initial guess. It is not a real physical
-  evolution. Do not interpret the concentration profiles along that order as a kinetics or a
-  spatial gradient, and do not switch unimodality on unless the data really follow an
+- **A data analysis method, not a proof.** MCR-ALS is only a method of data analysis. Its
+  results should always be compared with other methods of analysis and with other
+  characterization techniques. It is a useful tool, but like every method it has risks and
+  limits.
+- **More than one answer is possible.** Different starting guesses and settings can give
+  different results that reproduce the data equally well. It is good practice to compare both
+  widgets and to check the recovered spectra against known references when possible.
+- **The sorted order is not a real evolution.** Sorting the spectra by their main variation
+  helps to build a good starting guess, but it does not describe a physical process. The
+  profiles along this order should not be read as a kinetics or as a spatial gradient. The
+  constraint described in problem 2 should stay off unless the data really follow an
   evolution.
-- **Rotational ambiguity.** MCR-ALS solutions are not unique. Different initial guesses and
-  constraints can give different results with the same fit quality. Compare both widgets, and
-  check the resolved spectra against known references when you can.
-- **The number of components is chosen by the user.** The SVD report helps, but there is no
-  automatic choice.
-- **The fit verdict is a heuristic.** The thresholds 0.98 and 0.90 are practical limits, not a
-  statistical test.
-- **Code is stored twice.** The widget code is in `widgets/*.py` and also inside the example
-  workflow (`.ows`). A change in a `.py` file must be copied into the workflow.
-- **The installer is for Windows only.** On other systems, use `requirements.txt`.
+- **The number of components is chosen by the user.** The table printed by the widgets helps,
+  but there is no automatic choice.
+- **The fit verdict is a practical guide.** GOOD FIT, CHECK and POOR FIT are based on fixed
+  limits chosen from experience, not on a statistical test.
+- **The code is stored twice.** The widget code is in the `widgets` folder and also inside the
+  example workflow. A change in one place must be copied to the other.
+- **The installer is for Windows only.** On other systems, the packages listed in
+  `requirements.txt` can be installed with pip.
+
+## Technical notes
+
+- **Software versions:** Python 3.10.14, Orange 3.36.2, SpectroChemPy 0.6.9, numpy 1.26.4,
+  scipy 1.15.2, pandas 2.3.3, matplotlib 3.10.9, scikit-learn 1.3.2, PyQt 5.15.10,
+  setuptools 80.10.2 (must stay below 81, because newer versions no longer include
+  `pkg_resources`), Orange-Spectroscopy 0.6.13 (optional).
+- **SpectroChemPy default:** in version 0.6.9, `MCRALS` uses `unimodConc="all"`. The widgets
+  set it to `[]` unless `UNIMODALITY = True`.
+- **Main settings** (in the `CONFIGURATION` block of each widget): `N_COMPONENTS`,
+  `EXCLUDE_INDICES` (EFA widget), `REFERENCE_INDICES` (reference testing widget, 1-based input
+  rows), `PC_INDEX` and `PC_ASCENDING` (component and direction used to sort the spectra),
+  `UNIMODALITY` (default `False`).
+- **Other defaults:** non-negativity on concentrations and spectra, no closure, `nnls` solver
+  for both, at most 200 iterations.
+- **Number of components:** singular values of the uncentered data matrix, which matches the
+  bilinear model D = C·Sᵀ + E. Sorting uses PCA scores on mean-centred data.
+- **Reference testing verdict:** Pearson correlation r between each starting and refined
+  spectrum. GOOD FIT if |r| ≥ 0.98, CHECK if |r| ≥ 0.90, otherwise POOR FIT.
+- **Warnings:** a refined spectrum with |r| > 0.999 against a measured spectrum is flagged as
+  a possible degenerate solution; a component below 1 % of its maximum in more than half of
+  the spectra is flagged as absent. Fit quality is reported as LOF and R².
+- **Outputs:** `out_data` contains the concentrations (raw and as % of the row sum) with an
+  `Index` meta column holding the original 1-based position. `out_object` contains the
+  resolved spectra; in the reference testing widget it also contains the starting spectra,
+  tagged by a `Source` column (Guess or Optimized).
+- **Synthetic mixtures:** 1003 rows in `simulated_cu_mixtures.tab` (3 references + 1000
+  mixtures). Fractions drawn from a Dirichlet(1,1,1) distribution (they sum to 1); additive
+  white Gaussian noise with σ = 0.025; random seed 0.
+- **Distorted references:** edge shift 2 eV, post-edge energy stretch 6 %, post-edge
+  amplitude × 1.30, smooth onset over 5 eV after the edge, baseline smoothing 5 eV, added
+  oscillation with a period of 15 eV and an amplitude of 0.05.
 
 ## Acknowledgements
 
