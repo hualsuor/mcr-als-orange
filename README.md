@@ -97,9 +97,7 @@ python -m Orange.canvas
    **Concentrations** table and to a **Spectra** plot of the resolved spectra.
    The links to the two MCR-ALS widgets are disabled on purpose, so the calculation does not
    start when the file is opened. Right-click each link and choose **Enable** to run them.
-4. With the correct references, the warning "possible degenerate solution" can appear. This is
-   normal in this example, because the pure references are also included in the data.
-5. In the example workflow, the EFA widget uses `EXCLUDE_INDICES = [1, 2, 3]`, so the three
+4. In the example workflow, the EFA widget uses `EXCLUDE_INDICES = [1, 2, 3]`, so the three
    distorted references at the top of the table are not part of the analysis. In the `.py`
    file, the default is `[]`, so all rows are used.
 

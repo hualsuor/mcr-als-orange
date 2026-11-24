@@ -170,7 +170,8 @@ without normalization. The following results were obtained:
   by about 10 % at most. When the spectra are loaded in a different order, the results are the
   same. Only the numbering of the components can change.
 - **Reference testing with the true references.** The refined spectra stay very similar
-  to the starting references for the three components.
+  to the starting references for the three components. This test was run separately; it is
+  not part of the saved example workflow.
 - **Reference testing with the distorted references.** The refined spectra stay very similar
   to the wrong starting references: the similarity values are 0.980 for Cu(0), 0.948 for Cu(I)
   and 0.986 for Cu(II). The proportions, however, are clearly wrong. They differ from the true
@@ -180,8 +181,8 @@ without normalization. The following results were obtained:
   guarantee correct proportions. Only a careful look at the plots, especially after the edge,
   shows that the references do not match the data.
 
-The same tests can be repeated with the example workflow, `workflow/mcrals_cu_example.ows`.
-The workflow normalizes the spectra before the calculation, so its values can differ slightly
+The EFA test and the test with the distorted references can be repeated with the example
+workflow, `workflow/mcrals_cu_example.ows`. The workflow normalizes the spectra before the calculation, so its values can differ slightly
 from the ones above.
 
 ## Advantages
