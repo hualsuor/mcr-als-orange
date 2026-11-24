@@ -28,7 +28,7 @@ Both widgets:
 | Widget | File | Initial guess |
 |---|---|---|
 | **EFA concentration guess** | `widgets/mcrals_efa.py` | Builds the initial concentration profiles by evolving factor analysis (EFA). Spectra are first sorted by their score on a principal component chosen by the user, because EFA needs an ordered series. |
-| **Reference testing** | `widgets/mcrals_reference_testing.py` | Starts from spectra chosen by the user (e.g. database references). After the fit, it compares each starting spectrum with its resolved spectrum and rates the match as `GOOD FIT`, `CHECK` or `POOR FIT`. |
+| **Reference testing** | `widgets/mcrals_reference_testing.py` | Starts from spectra chosen by the user (e.g. database references). After the fit, it compares each starting spectrum with its resolved spectrum and rates the match as `GOOD FIT`, `CHECK` or `POOR FIT`. This verdict is only a guide: in XANES the edge jump makes different spectra look similar, so always check the plots, especially after the edge. |
 
 **Outputs**
 
@@ -93,6 +93,8 @@ python -m Orange.canvas
 3. The workflow loads 1000 simulated Cu mixtures and a set of distorted references, normalizes
    them, and runs both widgets. Each widget is connected to a **Concentrations** table and to a
    **Spectra** plot of the resolved spectra.
+4. With the correct references, the warning "possible degenerate solution" can appear. This is
+   normal in this example, because the pure references are also included in the data.
 
 To use a widget in your own workflow, add a **Python Script** widget, paste the content of the
 `.py` file, and edit the `CONFIGURATION` block.
