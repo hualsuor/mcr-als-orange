@@ -35,7 +35,7 @@ UNIMODALITY = False          # impose unimodal C (only valid for a real evolving
 
 NONNEG_CONC = "all"         # non-negativity constraint on C
 NONNEG_SPEC = "all"         # non-negativity constraint on St
-CLOSURE_CONC = []           # [] = no closure; "all" = row sums of C equal 1
+CLOSURE_CONC = []           # [] = no closure; list of components, e.g. [0, 1, 2] = row sums of C equal 1 ("all" fails in spectrochempy 0.6.9)
 NORM_SPEC = "euclid"        # St normalization convention (scale only)
 SOLVER_CONC = "nnls"        # C solver: "lstsq" | "nnls" | "pnnls"
 SOLVER_SPEC = "nnls"        # St solver

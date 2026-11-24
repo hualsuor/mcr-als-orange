@@ -103,6 +103,11 @@ set "STEP=3/8 Remove previous environment"
 call :log "[3/8] Removing previous environment if present..."
 if not exist "%ENV_DIR%" goto :no_previous_env
 
+call :log "An environment called %ENV_NAME% already exists."
+choice /c YN /n /m "An environment called %ENV_NAME% already exists. Delete and reinstall it? [Y/N] "
+if errorlevel 2 goto :cancelled
+call :log "User chose to delete and reinstall it."
+
 call "%CONDABAT%" env remove -n %ENV_NAME% -y >>"%LOGFILE%" 2>&1
 if exist "%ENV_DIR%" rmdir /s /q "%ENV_DIR%" 2>nul
 if exist "%ENV_DIR%" set "FAILMSG=Could not remove the previous environment at %ENV_DIR%. Close Orange, Spyder or any Python console that uses it and try again." & goto :failed
@@ -210,6 +215,12 @@ start "" "%ENV_DIR%\Scripts\orange-canvas.exe"
 :launched
 call :log "Orange Canvas launched. You can close this window."
 call :popup "Orange installer" "INSTALLATION SUCCESSFUL. Environment: %ENV_DIR%. To open Orange later: %CONDABAT% activate %ENV_NAME%, then python -m Orange.canvas" "Information"
+pause
+exit /b 0
+
+REM --- Cancelled by the user: the existing environment is not changed ----------
+:cancelled
+call :log "Installation cancelled. The existing environment %ENV_NAME% was not changed."
 pause
 exit /b 0
 

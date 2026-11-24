@@ -28,7 +28,7 @@ Both widgets:
 | Widget | File | Initial guess |
 |---|---|---|
 | **EFA concentration guess** | `widgets/mcrals_efa.py` | Builds the initial concentration profiles by evolving factor analysis (EFA). Spectra are first sorted by their score on a principal component chosen by the user, because EFA needs an ordered series. |
-| **Reference testing** | `widgets/mcrals_reference_testing.py` | Starts from spectra chosen by the user (e.g. database references). After the fit, it compares each starting spectrum with its resolved spectrum and rates the match as `GOOD FIT`, `CHECK` or `POOR FIT`. This verdict is only a guide: in XANES the edge jump makes different spectra look similar, so always check the plots, especially after the edge. |
+| **Reference testing** | `widgets/mcrals_reference_testing.py` | Starts from spectra chosen by the user (e.g. database references). After the fit, it shows how similar each starting spectrum is to its resolved spectrum and plots both, but it does not decide whether a reference is right. Compare each reference with its resolved spectrum, especially after the edge: in XANES the edge jump makes different spectra look similar, and a high similarity does not guarantee correct proportions. |
 
 **Outputs**
 
@@ -69,6 +69,8 @@ There are two ways to install them:
    environment called `orange_env` with Orange 3.36.2, SpectroChemPy 0.6.9 and compatible
    versions of numpy and scikit-learn, and then opens Orange.
    Each step is logged in `installer/install_log.txt`.
+   If an environment called `orange_env` already exists, the installer asks before deleting
+   and reinstalling it. If you answer **N**, it stops without changing anything.
 2. As a last, optional step, the installer tries to install the **Orange-Spectroscopy** add-on
    (needed only for the example workflow). If this step fails, the rest of the installation is
    kept, and the final message says so. In that case, install it from Orange: go to
@@ -91,10 +93,15 @@ python -m Orange.canvas
 2. The data files are loaded with paths relative to the workflow, so keep the folder structure
    as it is.
 3. The workflow loads 1000 simulated Cu mixtures and a set of distorted references, normalizes
-   them, and runs both widgets. Each widget is connected to a **Concentrations** table and to a
-   **Spectra** plot of the resolved spectra.
+   them, and prepares the data for both widgets. Each widget is connected to a
+   **Concentrations** table and to a **Spectra** plot of the resolved spectra.
+   The links to the two MCR-ALS widgets are disabled on purpose, so the calculation does not
+   start when the file is opened. Right-click each link and choose **Enable** to run them.
 4. With the correct references, the warning "possible degenerate solution" can appear. This is
    normal in this example, because the pure references are also included in the data.
+5. In the example workflow, the EFA widget uses `EXCLUDE_INDICES = [1, 2, 3]`, so the three
+   distorted references at the top of the table are not part of the analysis. In the `.py`
+   file, the default is `[]`, so all rows are used.
 
 To use a widget in your own workflow, add a **Python Script** widget, paste the content of the
 `.py` file, and edit the `CONFIGURATION` block.

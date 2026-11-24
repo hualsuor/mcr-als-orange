@@ -93,13 +93,15 @@ in the original order of the input table, so the link with the metadata is kept.
 Users often have candidate reference spectra, for example metallic copper, Cu2O and CuO from
 the ID21 database, and want to know whether these compounds are present in their samples. The
 reference testing widget starts the calculation from the references chosen by the user. The
-calculation then refines these spectra to fit the data. At the end, each refined spectrum is
-compared with the reference it started from. If the two are still very similar, the widget
-reports GOOD FIT. If they are less similar, it reports CHECK, and if the calculation moved far
-away from the reference, it reports POOR FIT. A poor fit suggests that the true compound in the
-sample is different, for example a Cu(II) species other than the oxide. The opposite is not
-always true: because the edge jump dominates XANES spectra, a wrong reference can still give
-GOOD FIT, so the verdict must be read together with the plots. This widget replaced
+calculation then refines these spectra to fit the data. At the end, the widget shows how
+similar each refined spectrum is to the reference it started from, and plots both. It does not
+decide whether a reference is right or wrong. This decision is left to the user, who compares
+each reference with its refined spectrum, especially in the region after the edge. A large
+change suggests that the true compound in the sample is different, for example a Cu(II)
+species other than the oxide. A small change is not a proof: because the edge jump dominates
+XANES spectra, a wrong reference can still stay very similar to its refined spectrum. An
+earlier version of the widget gave an automatic verdict, but the validation showed that it
+could be misleading, so it was removed. This widget replaced
 an earlier automatic method (SIMPLISMA), because it makes the choice of the starting spectra
 explicit and answers a question that users ask often.
 
@@ -157,6 +159,9 @@ Cu2O (Cu(I)) and CuO (Cu(II)).
   looks more like a calibration problem than a different compound. The script is
   `example_cu/scripts/make_distorted_references.py`.
 
+This example is meant to show how the widgets work. Many of its mixtures are close to pure
+components, which makes the problem easier than most real datasets.
+
 The tests were run with the package versions listed in `requirements.txt`, on the spectra
 without normalization. The following results were obtained:
 
@@ -164,12 +169,16 @@ without normalization. The following results were obtained:
   references. The proportions found differ from the true ones by about 2–3 % on average, and
   by about 10 % at most. When the spectra are loaded in a different order, the results are the
   same. Only the numbering of the components can change.
-- **Reference testing with the true references.** GOOD FIT for the three components.
-- **Reference testing with the distorted references.** GOOD FIT for Cu(0) and Cu(II), CHECK for
-  Cu(I). Two of the three wrong references were therefore not detected by the verdict. The
-  reason is that in XANES the edge jump dominates the spectrum, so even a distorted reference
-  remains very similar to the true one. However, the calculation still corrected the wrong
-  references: the refined spectra end very close to the true ones.
+- **Reference testing with the true references.** The refined spectra stay very similar
+  to the starting references for the three components.
+- **Reference testing with the distorted references.** The refined spectra stay very similar
+  to the wrong starting references: the similarity values are 0.980 for Cu(0), 0.948 for Cu(I)
+  and 0.986 for Cu(II). The proportions, however, are clearly wrong. They differ from the true
+  ones by about 14 percentage points on average, and Cu(0) is overestimated by about 20
+  points. The reason is that in XANES the edge jump dominates the spectrum, so a distorted
+  reference still looks very similar to the true one. A high similarity therefore does not
+  guarantee correct proportions. Only a careful look at the plots, especially after the edge,
+  shows that the references do not match the data.
 
 The same tests can be repeated with the example workflow, `workflow/mcrals_cu_example.ows`.
 The workflow normalizes the spectra before the calculation, so its values can differ slightly
@@ -205,10 +214,12 @@ from the ones above.
   evolution.
 - **The number of components is chosen by the user.** The table printed by the widgets helps,
   but there is no automatic choice.
-- **The fit verdict is only a guide.** GOOD FIT, CHECK and POOR FIT are based on fixed limits
-  chosen from experience, not on a statistical test. In XANES, the edge jump makes different
-  spectra look very similar, so a GOOD FIT does not prove that the reference is the right
-  compound. The plots should always be checked, especially the region after the edge.
+- **Similarity is not a proof.** The reference testing widget shows how similar each reference
+  is to its refined spectrum, but it does not judge the result. In XANES, the edge jump makes
+  different spectra look very similar. In the validation, the distorted references kept
+  similarity values of 0.95 to 0.99, while the proportions were wrong by about 14 percentage
+  points on average (about 20 points for Cu(0)). The user must compare each reference with its
+  refined spectrum, especially the region after the edge.
 - **The code is stored twice.** The widget code is in the `widgets` folder and also inside the
   example workflow. A change in one place must be copied to the other.
 - **The installer is for Windows only.** On other systems, the packages listed in
@@ -230,8 +241,8 @@ from the ones above.
   for both, at most 200 iterations.
 - **Number of components:** singular values of the uncentered data matrix, which matches the
   bilinear model D = C·Sᵀ + E. Sorting uses PCA scores on mean-centred data.
-- **Reference testing verdict:** Pearson correlation r between each starting and refined
-  spectrum. GOOD FIT if |r| ≥ 0.98, CHECK if |r| ≥ 0.90, otherwise POOR FIT.
+- **Reference testing similarity:** Pearson correlation r between each starting and refined
+  spectrum, printed for information only. No threshold or verdict is applied.
 - **Warnings:** a refined spectrum with |r| > 0.999 against a measured spectrum is flagged as
   a possible degenerate solution; a component below 1 % of its maximum in more than half of
   the spectra is flagged as absent. Fit quality is reported as LOF and R².
@@ -244,7 +255,8 @@ from the ones above.
   white Gaussian noise with σ = 0.025; random seed 0.
 - **Validation values** (non-normalized spectra): correlation of the EFA-recovered spectra with
   the true references ≥ 0.9999. Reference testing with the distorted references: Cu(0)
-  r = 0.980 (GOOD FIT), Cu(I) r = 0.948 (CHECK), Cu(II) r = 0.986 (GOOD FIT).
+  r = 0.980, Cu(I) r = 0.948, Cu(II) r = 0.986; mean absolute error of the fractions about
+  14 percentage points, Cu(0) overestimated by about 20 points.
 - **Distorted references:** edge shift 2 eV, post-edge energy stretch 6 %, post-edge
   amplitude × 1.30, smooth onset over 5 eV after the edge, baseline smoothing 5 eV, added
   oscillation with a period of 15 eV and an amplitude of 0.05.

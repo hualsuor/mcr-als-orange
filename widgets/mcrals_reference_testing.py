@@ -28,7 +28,7 @@ PC_ASCENDING = True       # sort direction for that PCA reordering
 
 NONNEG_CONC = "all"       # non-negativity constraint on C
 NONNEG_SPEC = "all"       # non-negativity constraint on St
-CLOSURE_CONC = []         # [] = no closure; "all" = row sums of C equal 1
+CLOSURE_CONC = []         # [] = no closure; list of components, e.g. [0, 1, 2] = row sums of C equal 1 ("all" fails in spectrochempy 0.6.9)
 NORM_SPEC = "euclid"      # St normalization convention (scale only)
 SOLVER_CONC = "nnls"      # C solver: "lstsq" | "nnls" | "pnnls"
 SOLVER_SPEC = "nnls"      # St solver
@@ -36,9 +36,6 @@ MAX_ITER = 200            # max ALS iterations
 MAXDIV = 10                # tolerated divergent iterations
 TOL_RESIDUAL_CHANGE = 1e-5    # convergence tolerance (spectrochempy >= 0.12)
 TOL_PERCENT_LEGACY = 1e-3     # convergence tolerance (older spectrochempy)
-
-MATCH_GOOD = 0.98          # |r(guess, optimized)| >= this -> GOOD FIT
-MATCH_QUESTIONABLE = 0.90  # >= this -> CHECK, else -> POOR FIT
 
 PLOT = True                # show diagnostic plots
 N_SVD_SHOW = 6              # singular values printed in the SVD report
@@ -163,18 +160,8 @@ def build_mcrals(unimodality):
     return mcr, applied
 
 
-def match_verdict(r):
-    if np.isnan(r):
-        return "NO DATA"
-    if abs(r) >= MATCH_GOOD:
-        return "GOOD FIT"
-    if abs(r) >= MATCH_QUESTIONABLE:
-        return "CHECK"
-    return "POOR FIT"
-
-
 def diagnostics(D, C, St, St0, ref_rows):
-    """LOF/R2, guess-vs-optimized match check, degeneracy and near-zero checks."""
+    """LOF/R2, guess-vs-optimized similarity, degeneracy and near-zero checks."""
     Xhat = C @ St
     E = D - Xhat
     sse = float(np.sum(E ** 2))
@@ -185,13 +172,12 @@ def diagnostics(D, C, St, St0, ref_rows):
     print("\n--- SANITY CHECKS ---")
     print(f"LOF = {lof:.5f} %    R2 = {100.0 * r2:.5f} %")
 
-    print("\n--- DOES THE REFERENCE FIT? (correlation guess vs optimized) ---")
+    print("\n--- SIMILARITY: chosen reference vs optimized spectrum ---")
     for j in range(St.shape[0]):
         r = _corr(St0[j], St[j])
-        verdict = match_verdict(r)
-        print(f"  Component_{j+1} (input row {ref_rows[j]}): r = {r:.5f}  ->  {verdict}")
-        if verdict == "POOR FIT":
-            print(f"      The fit moved away from the reference you put at row {ref_rows[j]}.")
+        print(f"  Component_{j+1} (input row {ref_rows[j]}): similarity r = {r:.3f} "
+              f"(information only, check the plots)")
+    print("  A high r does not prove the reference is right: compare the plots, mainly after the edge.")
 
     print("\n--- Other checks ---")
     for j in range(St.shape[0]):
